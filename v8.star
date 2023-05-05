@@ -234,7 +234,7 @@ def render_installation_label(street, city):
     # Due to the limitation of 100 requests in free Airly API, it is necessary to count and display requests to Airly API.
     return render.Marquee(
         width=60,
-        child=render.Text("%s, %s | api limit %s/100 per day: %s" % (street, city, cache.get("airly_api_limit_counter_in_cache"), cache.get("day_in_cache"))),
+        child=render.Text("%s, %s | api limit %s/100" % (street, city, cache.get("airly_api_limit_counter_in_cache"))),
     )
 
 def render_api_error_code(response_status_code):
@@ -276,10 +276,10 @@ def render_graphic_of_degree_pollution(pm, pm_type, factor):
 AIRLY_INSTALLATIONS_URL = "https://airapi.airly.eu/v2/installations/%s"
 AIRLY_MEASUREMENTS_URL = "https://airapi.airly.eu/v2/measurements/installation?installationId=%s"
 API_OR_USER_INPUT_FAIL = {
-    400: "Wrong input data format (ID station or Airly ApiKey)",
+    400: "Wrong input data format",
     401: "Wrong Airly ApiKey",
-    404: "Installation with the input ID does not exist",
-    429: "Out of API request limit (100 API request per day)",
+    404: "Installation with the ID does not exist",
+    429: "Out of API request limit",
     500: "Airly server internal error",
     999: "Set the Airly ApiKey OR the Airly Station ID",
 }
