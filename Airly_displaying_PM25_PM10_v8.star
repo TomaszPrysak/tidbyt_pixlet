@@ -9,17 +9,17 @@ load("time.star", "time")
 
 def main(config):
 
-    response_status_code = 200
+    status_code = 200
 
     airly_apikey = config.get("api_key")
     airly_id = config.get("airly_id")
 
-    if airly_apikey == None or airly_id == None:
+    if airly_apikey == "" or airly_apikey == None or airly_id == "" or airly_id == None:
         # If the user does not define the ID of the measuring station and/or Airly ApiKey, there is no need to go through the entire application logic. 
         # Information is returned to the user to provide this data.
-        response_status_code = 999
+        status_code = 999
 
-    if response_status_code == 200:
+    if status_code == 200:
 
         today = str(time.now().in_location("Europe/Warsaw"))[:10]
         day_out_cache = cache.get("day_in_cache")
@@ -58,7 +58,7 @@ def main(config):
             else:
                 # If there is an error with the Airly API, the appropriate information is returned to the user.
 
-                response_status_code = response_installations.status_code
+                status_code = response_installations.status_code
                 # fail("Airly API request failed with status %d" % response_installations.status_code)
 
         else:
@@ -69,7 +69,7 @@ def main(config):
             airly_street_value = str(airly_street_out_cache)
             airly_city_value = str(airly_city_out_cache)
 
-    if response_status_code == 200:
+    if status_code == 200:
 
         if airly_pm25_out_cache != None and airly_pm10_out_cache != None and airly_id == cache.get("airly_id"):
             # If 20 minutes have not passed since the measurement data was saved to the cache, we download the data from the cache and do not send unnecessary queries to the Airly API.
@@ -104,15 +104,15 @@ def main(config):
             else:
                 # If there is an error with the Airly API, the appropriate information is returned to the user.
 
-                response_status_code = response_measurements.status_code
+                status_code = response_measurements.status_code
                 # fail("Airly API request failed with status %d" % response_measurements.status_code)
 
-    if response_status_code == 200:
+    if status_code == 200:
         render_list = render_pm25_pm10_data(
                         airly_street_value, airly_city_value, airly_pm25_value, airly_pm10_value
                     )
     else:
-        render_list = render_api_error_code(response_status_code)
+        render_list = render_api_error_code(status_code)
 
     return render.Root(
         child = render.Box(
@@ -135,12 +135,14 @@ def get_schema():
                 name = "Airly Station ID",
                 desc = "Set the Airly Station ID",
                 icon = "satellite-dish",
+                default = "",
             ),
             schema.Text(
                 id = "api_key",
                 name = "Airly ApiKey",
                 desc = "Set the Airly ApiKey",
                 icon = "gear",
+                default = "",
             ),
         ],
     )
@@ -178,7 +180,7 @@ def render_pm25_pm10_data(street, city, pm25, pm10):
             render_installation_label(street, city),
             render.Padding(
                 pad=(2,0,2,0),
-                child=render.Stack(render_graphic_of_degree_pollution(pm10, "pm10", 0.399)),
+                child=render.Stack(render_graphic_of_degree_pollution(pm10, "pm10", 0.385)),
             ),
             render.Padding(
                 pad=(0,0,0,0),
@@ -190,7 +192,7 @@ def render_pm25_pm10_data(street, city, pm25, pm10):
             render_installation_label(street, city),
             render.Padding(
                 pad=(2,0,2,0),
-                child=render.Stack(render_graphic_of_degree_pollution(pm25, "pm25", 0.545)),
+                child=render.Stack(render_graphic_of_degree_pollution(pm25, "pm25", 0.527)),
             ),
             render.Padding(
                 pad=(0,0,0,0),
@@ -202,7 +204,7 @@ def render_pm25_pm10_data(street, city, pm25, pm10):
         render_installation_label(street, city),
         render.Padding(
             pad=(2,0,2,0),
-            child=render.Stack(render_graphic_of_degree_pollution(pm25, "pm25", 0.545)),
+            child=render.Stack(render_graphic_of_degree_pollution(pm25, "pm25", 0.527)),
         ),
         render.Padding(
             pad=(0,0,0,0),
@@ -210,7 +212,7 @@ def render_pm25_pm10_data(street, city, pm25, pm10):
         ),
         render.Padding(
             pad=(2,0,2,0),
-            child=render.Stack(render_graphic_of_degree_pollution(pm10, "pm10", 0.399)),
+            child=render.Stack(render_graphic_of_degree_pollution(pm10, "pm10", 0.385)),
         ),
         render.Padding(
             pad=(0,0,0,0),
@@ -225,20 +227,21 @@ def render_installation_label(street, city):
         child=render.Text("%s, %s | api limit %s/100" % (street, city, cache.get("airly_api_limit_counter_in_cache"))),
     )
 
-def render_api_error_code(response_status_code):
+def render_api_error_code(status_code):
+    first_number_status = int(str(status_code)[0])
     return [
-        render.Text("Error: %s" % response_status_code),
+        render.Text("%s: %s" % (TYPE_FAIL[first_number_status], status_code if first_number_status != 9 else "")),
         render.Marquee(
             width=60,
-            child=render.Text("%s" % API_OR_USER_INPUT_FAIL[response_status_code]),
+            child=render.Text("%s" % API_OR_USER_INPUT_FAIL[status_code]),
         ),
     ]
 
 def render_graphic_of_degree_pollution(pm, pm_type, factor):
     # The factor is calculated based on the following rule:
-    # 60 pixels is the length of the pollution indicator
+    # 60 pixels bar and 3 pixels  pointer means thet max padding form letf 58 pixels is the length of the pollution indicator
     # Very bad pollition for PM2.5 is 110 and for PM10 is 150
-    # 60 / 110 = 0.545 and 60 / 150 = 0.399
+    # 58 / 110 = 0.527 and 58 / 150 = 0.385
 
     # A PM2.5 value above 110 is considered very bad
     # There is no need to show the degree of pollution above this value
@@ -256,13 +259,18 @@ def render_graphic_of_degree_pollution(pm, pm_type, factor):
     padding = int(pm*factor)
     return [
         render.Image(RANGE_DEGREE_POLLUTION),
-        render.Padding(pad = (padding, 0, 0, 0), child = render.Box(width = 1, height = 4, color = "#fff")),
+        render.Padding(pad = (padding, 0, 0, 0), child = render.Box(width = 3, height = 4, color = "#fff")),
     ]
 
 ### CONSTANTS ###
 
 AIRLY_INSTALLATIONS_URL = "https://airapi.airly.eu/v2/installations/%s"
 AIRLY_MEASUREMENTS_URL = "https://airapi.airly.eu/v2/measurements/installation?installationId=%s"
+TYPE_FAIL = {
+    4: "Error",
+    5: "Error",
+    9: "Info",
+}
 API_OR_USER_INPUT_FAIL = {
     400: "Wrong input data format",
     401: "Wrong Airly ApiKey",
